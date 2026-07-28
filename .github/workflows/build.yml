@@ -34,23 +34,29 @@ jobs:
           git config --global user.name "AOSP Builder"
           git config --global user.email "aosp@build.local"
 
-      - name: Sync Source Code & Trees
+      - name: Sync Source Code & Local Manifest
         run: |
           mkdir -p ~/rom && cd ~/rom
           repo init -u https://github.com/LineageOS/android.git -b lineage-20.0 --git-lfs --depth=1
           
-          # Device Tree Clone (Corrected Branch Name)
-          git clone https://github.com/Evolution-X-Devices/device_xiaomi_vili.git -b thirteen device/xiaomi/vili
-          
-          # Vendor Tree Clone
-          git clone https://github.com/Evolution-X-Devices/vendor_xiaomi_vili.git -b thirteen vendor/xiaomi/vili
-          
-          # Kernel Tree Clone
-          git clone https://github.com/Evolution-X-Devices/kernel_xiaomi_sm8350.git -b thirteen kernel/xiaomi/sm8350
+          # Local Manifest File Banana (Sabse Professional Tarika)
+          mkdir -p .repo/local_manifests
+          cat <<EOF > .repo/local_manifests/vili.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <manifest>
+            <project path="device/xiaomi/vili" name="LineageOS/android_device_xiaomi_vili" remote="github" revision="lineage-20.0" />
+            <project path="vendor/xiaomi/vili" name="The-Muppets/proprietary_vendor_xiaomi_vili" remote="github" revision="lineage-20.0" />
+            <project path="kernel/xiaomi/sm8350" name="LineageOS/android_kernel_xiaomi_sm8350" remote="github" revision="lineage-20.0" />
+            <project path="hardware/xiaomi" name="LineageOS/android_hardware_xiaomi" remote="github" revision="lineage-20.0" />
+          </manifest>
+          EOF
+
+          # Repo Sync Command
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
       - name: Build ROM
         run: |
           cd ~/rom
           source build/envsetup.sh
-          lunch lineage_vili-userdebug || lunch evo_vili-userdebug
+          lunch lineage_vili-userdebug
           mka bacon -j$(nproc --all)
