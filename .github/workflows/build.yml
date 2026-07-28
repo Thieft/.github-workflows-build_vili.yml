@@ -39,14 +39,14 @@ jobs:
           mkdir -p ~/rom && cd ~/rom
           repo init -u https://github.com/LineageOS/android.git -b lineage-20.0 --git-lfs --depth=1
           
-          # Device Tree Clone (With Fallback)
-          git clone https://github.com/Evolution-X-Devices/device_xiaomi_vili.git -b trece device/xiaomi/vili || git clone https://github.com/pixelexperience-devices/device_xiaomi_vili.git -b thirteen device/xiaomi/vili
+          # Device Tree Clone (Corrected Branch Name)
+          git clone https://github.com/Evolution-X-Devices/device_xiaomi_vili.git -b thirteen device/xiaomi/vili
           
           # Vendor Tree Clone
-          git clone https://gitlab.com/themoandette/proprietary_vendor_xiaomi_vili.git -b lineage-20.0 vendor/xiaomi/vili || git clone https://github.com/Evolution-X-Devices/vendor_xiaomi_vili.git -b trece vendor/xiaomi/vili
+          git clone https://github.com/Evolution-X-Devices/vendor_xiaomi_vili.git -b thirteen vendor/xiaomi/vili
           
           # Kernel Tree Clone
-          git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8350.git -b lineage-20.0 kernel/xiaomi/sm8350 || git clone https://github.com/Evolution-X-Devices/kernel_xiaomi_sm8350.git -b trece kernel/xiaomi/sm8350
+          git clone https://github.com/Evolution-X-Devices/kernel_xiaomi_sm8350.git -b thirteen kernel/xiaomi/sm8350
 
       - name: Build ROM
         run: |
