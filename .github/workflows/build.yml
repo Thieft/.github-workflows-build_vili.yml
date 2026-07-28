@@ -29,12 +29,17 @@ jobs:
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
+      - name: Configure Git
+        run: |
+          git config --global user.name "AOSP Builder"
+          git config --global user.email "aosp@build.local"
+
       - name: Sync Source Code & Trees
         run: |
           mkdir -p ~/rom && cd ~/rom
-          repo init -u https://github.com/LineageOS/android.git -b lineage-20.0 --git-lfs
+          repo init -u https://github.com/LineageOS/android.git -b lineage-20.0 --git-lfs --depth=1
           git clone https://github.com/LineageOS/android_device_xiaomi_vili.git -b lineage-20.0 device/xiaomi/vili
-          git clone https://github.com/The-Muppets/proprietary_vendor_xiaomi_vili.git -b lineage-20.0 vendor/xiaomi/vili
+          git clone https://gitlab.com/themoandette/proprietary_vendor_xiaomi_vili.git -b lineage-20.0 vendor/xiaomi/vili || git clone https://github.com/LineageOS/android_vendor_xiaomi_vili.git -b lineage-20.0 vendor/xiaomi/vili
           git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8350.git -b lineage-20.0 kernel/xiaomi/sm8350
 
       - name: Build ROM
