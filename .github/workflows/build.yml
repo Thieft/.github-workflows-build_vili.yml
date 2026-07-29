@@ -1,4 +1,4 @@
-name: Build Custom ROM for Xiaomi 11T Pro (vili)
+name: Build Ultimate Custom ROM for Xiaomi 11T Pro (vili)
 
 on:
   workflow_dispatch:
@@ -11,16 +11,18 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Free Disk Space
+      - name: Free Maximum Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
 
-      - name: Setup Build Environment
+      - name: Setup Robust Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf libncurses5-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc zip zlib1g-dev
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf libncurses5-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc zip zlib1g-dev git-lfs
 
       - name: Install Repo Tool
         run: |
@@ -29,17 +31,19 @@ jobs:
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Configure Git
+      - name: Configure Git Identity & Large Buffer
         run: |
           git config --global user.name "AOSP Builder"
           git config --global user.email "aosp@build.local"
+          git config --global http.postBuffer 524288000
+          git config --global core.compression 0
 
       - name: Sync Source Code & Local Manifest
         run: |
           mkdir -p ~/rom && cd ~/rom
           repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1
           
-          # Local Manifest File for Android 14 (vili)
+          # Local Manifest for Vili (A14 Stable Base)
           mkdir -p .repo/local_manifests
           cat <<EOF > .repo/local_manifests/vili.xml
           <?xml version="1.0" encoding="UTF-8"?>
@@ -51,12 +55,30 @@ jobs:
           </manifest>
           EOF
 
-          # Smart Sync with Retry
-          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags || repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
+          # Smart Low-Thread Sync (Fixes Rust & Clang Git Checkout Errors)
+          repo sync -c -j2 --force-sync --no-clone-bundle --no-tags || repo sync -c -j1 --force-sync --no-clone-bundle --no-tags
 
-      - name: Build ROM
+      - name: Pre-install System Apps & Banking PlayIntegrity Spoof
+        run: |
+          cd ~/rom
+          
+          # 1. Pre-install ViPER4AndroidFX Repackaged as Priv-App
+          mkdir -p device/xiaomi/vili/prebuilt/priv-app/ViPER4AndroidFX
+          curl -L -o device/xiaomi/vili/prebuilt/priv-app/ViPER4AndroidFX/ViPER4AndroidFX.apk "https://github.com/Aki007/ViPER4AndroidFX-repackaged/releases/download/v2.7.2.1/ViPER4AndroidFX-repackaged.apk" || true
+
+          # 2. Pre-install YouTube Morphe as System App
+          mkdir -p device/xiaomi/vili/prebuilt/app/YouTube
+          curl -L -o device/xiaomi/vili/prebuilt/app/YouTube/YouTube.apk "https://github.com/MorpheApp/Morphe/releases/latest/download/YouTube-Morphe.apk" || true
+
+          # 3. Enable Game Prop Spoofing & Banking Play Integrity Fingerprint
+          echo "TARGET_ENABLE_GAME_PROPS_SPOOF := true" >> device/xiaomi/vili/BoardConfig.mk
+          echo "PRODUCT_BUILD_PROP_OVERRIDES += TARGET_DEVICE=husky BUILD_FINGERPRINT=google/husky/husky:14/UD1A.230805.004/10800000:user/release-keys" >> device/xiaomi/vili/device.mk
+
+      - name: Build ROM Package (User Stealth Mode)
         run: |
           cd ~/rom
           source build/envsetup.sh
-          lunch lineage_vili-userdebug
+          
+          # Pure User Mode Build (For 100% Banking App Compatibility)
+          lunch lineage_vili-user
           mka bacon -j$(nproc --all)
