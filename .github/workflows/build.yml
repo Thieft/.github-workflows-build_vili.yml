@@ -44,6 +44,7 @@ jobs:
       - name: Sync Source Code & Local Manifest
         run: |
           mkdir -p ~/rom && cd ~/rom
+          # --depth=1 is strictly for repo init
           repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1
           
           # Local Manifest for Vili
@@ -58,8 +59,8 @@ jobs:
           </manifest>
           EOF
 
-          # Depth-1 Shallow Sync to Save 25+ GB Disk Space
-          repo sync -c -j2 --force-sync --no-clone-bundle --no-tags --depth=1
+          # Correct Repo Sync Command
+          repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
 
       - name: Pre-install System Apps & Banking PlayIntegrity Spoof
         run: |
