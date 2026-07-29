@@ -59,3 +59,4 @@ task:
     - source build/envsetup.sh
     - lunch $LUNCH_CMD
     - mka bacon -j8
+    # Test trigger
