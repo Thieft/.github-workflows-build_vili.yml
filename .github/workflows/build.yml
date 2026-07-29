@@ -42,11 +42,11 @@ jobs:
           git config --global user.email "aosp@build.local"
           git config --global http.postBuffer 524288000
 
-      # 3. Sync Source Code with Minimal Depth & Partial Clone
+      # 3. Sync Source Code with Partial Clone Flags
       - name: Sync Source Code & Local Manifest
         run: |
           mkdir -p ~/rom && cd ~/rom
-          repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1 --filter=blob:none
+          repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1 --clone-filter=blob:none
           
           # Local Manifest for Vili
           mkdir -p .repo/local_manifests
@@ -60,8 +60,8 @@ jobs:
           </manifest>
           EOF
 
-          # Partial Sync Command (Saves 35+ GB Space)
-          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
+          # Repo Sync Command
+          repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
 
       # 4. Pre-install Apps & Banking Patch
       - name: Pre-install System Apps & Banking PlayIntegrity Spoof
