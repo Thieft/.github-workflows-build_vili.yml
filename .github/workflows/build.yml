@@ -51,8 +51,8 @@ jobs:
           </manifest>
           EOF
 
-          # Repo Sync Command
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+          # Smart Sync with Retry
+          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags || repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
 
       - name: Build ROM
         run: |
