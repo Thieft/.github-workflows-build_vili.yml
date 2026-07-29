@@ -9,19 +9,21 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Maximize Free Disk Space (Deep Clean)
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          docker image prune --all --force
-          sudo apt-get clean
-          df -h
+      # 1. Maximize Disk Space (Gives 100GB+ Storage for AOSP)
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 2048
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
 
+      # 2. Setup Build Tools
       - name: Setup Build Environment
         run: |
           sudo apt-get update
@@ -41,10 +43,10 @@ jobs:
           git config --global http.postBuffer 524288000
           git config --global core.compression 0
 
+      # 3. Sync Source Code
       - name: Sync Source Code & Local Manifest
         run: |
           mkdir -p ~/rom && cd ~/rom
-          # --depth=1 is strictly for repo init
           repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1
           
           # Local Manifest for Vili
@@ -59,30 +61,30 @@ jobs:
           </manifest>
           EOF
 
-          # Correct Repo Sync Command
+          # Sync with Low Threads
           repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
 
+      # 4. Pre-install Apps & Banking Patch
       - name: Pre-install System Apps & Banking PlayIntegrity Spoof
         run: |
           cd ~/rom
           
-          # 1. Pre-install ViPER4AndroidFX Repackaged as Priv-App
+          # Pre-install ViPER4AndroidFX Repackaged as Priv-App
           mkdir -p device/xiaomi/vili/prebuilt/priv-app/ViPER4AndroidFX
           curl -L -o device/xiaomi/vili/prebuilt/priv-app/ViPER4AndroidFX/ViPER4AndroidFX.apk "https://github.com/Aki007/ViPER4AndroidFX-repackaged/releases/download/v2.7.2.1/ViPER4AndroidFX-repackaged.apk" || true
 
-          # 2. Pre-install YouTube Morphe as System App
+          # Pre-install YouTube Morphe as System App
           mkdir -p device/xiaomi/vili/prebuilt/app/YouTube
           curl -L -o device/xiaomi/vili/prebuilt/app/YouTube/YouTube.apk "https://github.com/MorpheApp/Morphe/releases/latest/download/YouTube-Morphe.apk" || true
 
-          # 3. Enable Game Prop Spoofing & Banking Play Integrity Fingerprint
+          # Enable Game Prop Spoofing & Banking Play Integrity Fingerprint
           echo "TARGET_ENABLE_GAME_PROPS_SPOOF := true" >> device/xiaomi/vili/BoardConfig.mk
           echo "PRODUCT_BUILD_PROP_OVERRIDES += TARGET_DEVICE=husky BUILD_FINGERPRINT=google/husky/husky:14/UD1A.230805.004/10800000:user/release-keys" >> device/xiaomi/vili/device.mk
 
+      # 5. Build ROM
       - name: Build ROM Package (User Stealth Mode)
         run: |
           cd ~/rom
           source build/envsetup.sh
-          
-          # Pure User Mode Build (For 100% Banking App Compatibility)
           lunch lineage_vili-user
           mka bacon -j$(nproc --all)
