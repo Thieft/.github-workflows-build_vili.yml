@@ -11,12 +11,12 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      # 1. Maximize Disk Space (Gives 100GB+ Storage for AOSP)
+      # 1. Maximize Disk Space
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@v10
         with:
-          root-reserve-mb: 2048
-          swap-size-mb: 1024
+          root-reserve-mb: 1024
+          swap-size-mb: 512
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -36,18 +36,17 @@ jobs:
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Configure Git Identity & Large Buffer
+      - name: Configure Git Identity & Optimization
         run: |
           git config --global user.name "AOSP Builder"
           git config --global user.email "aosp@build.local"
           git config --global http.postBuffer 524288000
-          git config --global core.compression 0
 
-      # 3. Sync Source Code
+      # 3. Sync Source Code with Minimal Depth & Partial Clone
       - name: Sync Source Code & Local Manifest
         run: |
           mkdir -p ~/rom && cd ~/rom
-          repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1
+          repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1 --filter=blob:none
           
           # Local Manifest for Vili
           mkdir -p .repo/local_manifests
@@ -61,8 +60,8 @@ jobs:
           </manifest>
           EOF
 
-          # Sync with Low Threads
-          repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
+          # Partial Sync Command (Saves 35+ GB Space)
+          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
 
       # 4. Pre-install Apps & Banking Patch
       - name: Pre-install System Apps & Banking PlayIntegrity Spoof
