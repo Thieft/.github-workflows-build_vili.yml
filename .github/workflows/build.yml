@@ -11,44 +11,48 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      # 1. Maximize Disk Space
+      # 1. Merge partitions for Max Storage
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@v10
         with:
           root-reserve-mb: 1024
-          swap-size-mb: 512
+          swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
-      # 2. Setup Build Tools
+      # 2. Extreme Deep Clean (Deletes useless pre-installed software)
+      - name: Extreme Space Cleanup
+        run: |
+          sudo rm -rf /usr/share/swift /usr/local/julia /opt/hostedtoolcache
+          sudo docker container prune -f
+          sudo apt-get clean
+          df -h
+
+      # 3. Setup Build Environment
       - name: Setup Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf libncurses5-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc zip zlib1g-dev git-lfs
-
-      - name: Install Repo Tool
-        run: |
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf libncurses5-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc zip zlib1g-dev git-lfs python3
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Configure Git Identity & Optimization
+      - name: Configure Git
         run: |
           git config --global user.name "AOSP Builder"
           git config --global user.email "aosp@build.local"
           git config --global http.postBuffer 524288000
 
-      # 3. Sync Source Code with Partial Clone Flags
-      - name: Sync Source Code & Local Manifest
+      # 4. Sync Source Code
+      - name: Sync Source Code (Space Optimized)
         run: |
           mkdir -p ~/rom && cd ~/rom
           repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs --depth=1 --clone-filter=blob:none
           
-          # Local Manifest for Vili
           mkdir -p .repo/local_manifests
           cat <<EOF > .repo/local_manifests/vili.xml
           <?xml version="1.0" encoding="UTF-8"?>
@@ -60,30 +64,29 @@ jobs:
           </manifest>
           EOF
 
-          # Repo Sync Command
-          repo sync -c -j2 --force-sync --no-clone-bundle --no-tags
+          # Fast Sync
+          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
+          
+          # THE MAGIC TRICK: Freeing up 30GB+ space by deleting sync history
+          echo "Deleting .repo history to free up massive disk space for compilation..."
+          rm -rf .repo/
 
-      # 4. Pre-install Apps & Banking Patch
-      - name: Pre-install System Apps & Banking PlayIntegrity Spoof
+      # 5. Inject Apps & Banking Spoofer
+      - name: Inject System Apps & Banking Spoof
         run: |
           cd ~/rom
-          
-          # Pre-install ViPER4AndroidFX Repackaged as Priv-App
           mkdir -p device/xiaomi/vili/prebuilt/priv-app/ViPER4AndroidFX
           curl -L -o device/xiaomi/vili/prebuilt/priv-app/ViPER4AndroidFX/ViPER4AndroidFX.apk "https://github.com/Aki007/ViPER4AndroidFX-repackaged/releases/download/v2.7.2.1/ViPER4AndroidFX-repackaged.apk" || true
-
-          # Pre-install YouTube Morphe as System App
           mkdir -p device/xiaomi/vili/prebuilt/app/YouTube
           curl -L -o device/xiaomi/vili/prebuilt/app/YouTube/YouTube.apk "https://github.com/MorpheApp/Morphe/releases/latest/download/YouTube-Morphe.apk" || true
-
-          # Enable Game Prop Spoofing & Banking Play Integrity Fingerprint
           echo "TARGET_ENABLE_GAME_PROPS_SPOOF := true" >> device/xiaomi/vili/BoardConfig.mk
           echo "PRODUCT_BUILD_PROP_OVERRIDES += TARGET_DEVICE=husky BUILD_FINGERPRINT=google/husky/husky:14/UD1A.230805.004/10800000:user/release-keys" >> device/xiaomi/vili/device.mk
 
-      # 5. Build ROM
-      - name: Build ROM Package (User Stealth Mode)
+      # 6. Build the ROM
+      - name: Compile ROM (User Stealth Mode)
         run: |
           cd ~/rom
+          export CCACHE_DISABLE=1
           source build/envsetup.sh
           lunch lineage_vili-user
           mka bacon -j$(nproc --all)
